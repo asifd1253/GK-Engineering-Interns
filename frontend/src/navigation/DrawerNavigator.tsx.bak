@@ -1,0 +1,307 @@
+import React from 'react';
+import { View, TouchableOpacity, Text, Platform, StyleSheet } from 'react-native';
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerContentComponentProps,
+} from '@react-navigation/drawer';
+import { DataStorage } from '../utils/storage';
+import { DashboardScreen } from '../screens/DashboardScreen';
+import { ConfigurationScreen } from '../screens/ConfigurationScreen';
+import { InventoryScreen } from '../screens/InventoryScreen';
+import { WorkOrderScreen } from '../screens/WorkOrderScreen';
+import { ProductionProcessScreen } from '../screens/ProductionProcessScreen';
+import { ClientsScreen } from '../screens/ClientsScreen';
+import { QualityScreen } from '../screens/QualityScreen';
+import { ReportsScreen } from '../screens/ReportsScreen';
+import { User } from '../types';
+
+const Drawer = createDrawerNavigator();
+
+interface DrawerNavigatorProps {
+  user: User;
+  onLogout: () => void;
+}
+
+const MENU_ITEMS = [
+  { name: 'Dashboard', icon: '🏠', section: 'Overview', roles: ['admin', 'tenant', 'super', 'storekeeper', 'inventory', 'ptc', 'qi', 'fqi'] },
+  { name: 'Inventory', icon: '📦', section: 'Operations', roles: ['admin', 'tenant', 'storekeeper', 'inventory', 'qi'] },
+  { name: 'Work Orders', icon: '📋', section: 'Operations', roles: ['admin', 'tenant', 'ptc', 'manager'] },
+  { name: 'Pipeline', icon: '🏭', section: 'Operations', roles: ['admin', 'tenant', 'ptc', 'qi'] },
+  { name: 'Quality', icon: '🔬', section: 'Operations', roles: ['admin', 'tenant', 'qi', 'fqi'] },
+  { name: 'Reports', icon: '📊', section: 'Operations', roles: ['admin', 'tenant'] },
+  { name: 'Configuration', icon: '⚙️', section: 'Administration', roles: ['admin', 'tenant'] },
+];
+
+const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
+  admin: { bg: '#ede9fe', text: '#5b21b6' },
+  storekeeper: { bg: '#e0f2fe', text: '#075985' },
+  ptc: { bg: '#fce7f3', text: '#9d174d' },
+  qi: { bg: '#ecfdf5', text: '#065f46' },
+  fqi: { bg: '#fef9c3', text: '#713f12' },
+  super_admin: { bg: '#dbeafe', text: '#1e40af' },
+  tenant_admin: { bg: '#ede9fe', text: '#5b21b6' },
+  inventory_user: { bg: '#e0f2fe', text: '#075985' },
+  inventory_qi: { bg: '#ecfdf5', text: '#065f46' },
+  ptc_manager: { bg: '#fce7f3', text: '#9d174d' },
+  qi_user: { bg: '#ecfdf5', text: '#065f46' },
+  final_qi_user: { bg: '#fef9c3', text: '#713f12' },
+  ptc_diecasting: { bg: '#fce7f3', text: '#9d174d' },
+  qi_diecasting: { bg: '#ecfdf5', text: '#065f46' },
+  ptc_coating: { bg: '#fce7f3', text: '#9d174d' },
+  qi_coating: { bg: '#ecfdf5', text: '#065f46' },
+  ptc_machining: { bg: '#fce7f3', text: '#9d174d' },
+  qi_machining: { bg: '#ecfdf5', text: '#065f46' },
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrator',
+  storekeeper: 'Storekeeper',
+  ptc: 'PTC Manager',
+  qi: 'Quality Inspector',
+  fqi: 'Final QI',
+  super_admin: 'System Admin',
+  tenant_admin: 'Company Admin',
+  inventory_user: 'Storekeeper',
+  inventory_qi: 'Inventory QI',
+  ptc_manager: 'PTC Manager',
+  qi_user: 'Quality Inspector',
+  final_qi_user: 'Final QI',
+  ptc_diecasting: 'PTC - Die Casting',
+  qi_diecasting: 'QI - Die Casting',
+  ptc_coating: 'PTC - Coating',
+  qi_coating: 'QI - Coating',
+  ptc_machining: 'PTC - Machining',
+  qi_machining: 'QI - Machining',
+};
+
+function getInitials(name: string, username: string) {
+  if (name) {
+    return name
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }
+  return username.slice(0, 2).toUpperCase();
+}
+
+function CustomDrawerContent(
+  props: DrawerContentComponentProps & { user: User; onLogout: () => void }
+) {
+  const { user, onLogout, state, navigation } = props;
+  const initials = getInitials(user.name, user.username);
+  const roleStyle = ROLE_COLORS[user.role] ?? { bg: '#f1f5f9', text: '#334155' };
+  const currentRoute = state.routeNames[state.index];
+
+  const sections = ['Overview', 'Operations', 'Administration'];
+
+  return (
+    <DrawerContentScrollView
+      {...props}
+      contentContainerStyle={{ flex: 1, paddingTop: 8 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={drawerStyles.profileCard}>
+        <View style={drawerStyles.logoRow}>
+          <View style={drawerStyles.logoBox}>
+            <Text style={drawerStyles.logoText}>
+              {user.email === 'admin@wimera.com' ? 'W' : (user.tenantName?.charAt(0) || 'G')}
+            </Text>
+          </View>
+          <View>
+            <Text style={drawerStyles.companyName}>
+              {user.email === 'admin@wimera.com' ? 'Wimera Systems' : (user.tenantName || 'GK Manufacturing')}
+            </Text>
+            <Text style={drawerStyles.companyTagline}>
+              {user.email === 'admin@wimera.com' ? 'Central Management' : 'Production System v1.0'}
+            </Text>
+          </View>
+        </View>
+        <View style={drawerStyles.divider} />
+        <View style={drawerStyles.userRow}>
+          <View style={drawerStyles.avatar}>
+            <Text style={drawerStyles.avatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={drawerStyles.userName}>{user.name || user.username}</Text>
+            <View style={[drawerStyles.roleBadge, { backgroundColor: roleStyle.bg }]}>
+              <Text style={[drawerStyles.roleText, { color: roleStyle.text }]}>
+                {ROLE_LABELS[user.role] || user.role}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={drawerStyles.navContainer}>
+        {sections.map((section) => {
+          const items = MENU_ITEMS.filter((item) => {
+            if (item.section !== section) return false;
+            const role = (user.role || '').toLowerCase();
+            const email = (user.email || '').toLowerCase();
+            const isInvQI = role.includes('inventory_qi') || email.includes('invqi');
+            
+            if (isInvQI) return item.name === 'Inventory';
+            if (role.includes('admin') || role === 'super_admin') return true;
+            return item.roles.some(r => role.includes(r.toLowerCase()));
+          });
+          if (items.length === 0) return null;
+          return (
+            <View key={section} style={drawerStyles.section}>
+              <Text style={drawerStyles.sectionLabel}>{section.toUpperCase()}</Text>
+              {items.map((item) => {
+                const isActive = currentRoute === item.name;
+                return (
+                  <TouchableOpacity
+                    key={item.name}
+                    style={[drawerStyles.menuItem, isActive && drawerStyles.menuItemActive]}
+                    onPress={() => navigation.navigate(item.name)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        drawerStyles.menuIconBox,
+                        isActive ? drawerStyles.menuIconBoxActive : drawerStyles.menuIconBoxInactive,
+                      ]}
+                    >
+                      <Text style={drawerStyles.menuIcon}>{item.icon}</Text>
+                    </View>
+                    <Text style={[drawerStyles.menuLabel, isActive && drawerStyles.menuLabelActive]}>
+                      {item.name}
+                    </Text>
+                    {isActive && <View style={drawerStyles.activeIndicator} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={drawerStyles.logoutSection}>
+        <TouchableOpacity style={drawerStyles.logoutBtn} onPress={onLogout} activeOpacity={0.8}>
+          <Text style={drawerStyles.logoutIcon}>🚪</Text>
+          <Text style={drawerStyles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+        <Text style={drawerStyles.versionText}>
+          © 2026 {user.email === 'admin@wimera.com' ? 'Wimera Systems' : (user.tenantName || 'GK Manufacturing')}
+        </Text>
+      </View>
+    </DrawerContentScrollView>
+  );
+}
+
+export function DrawerNavigator({ user, onLogout }: DrawerNavigatorProps) {
+  const handleLogout = async () => {
+    await DataStorage.setCurrentUser(null);
+    onLogout();
+  };
+
+  const canAccess = (allowedRoles: string[]) => {
+    const role = (user.role || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    if (role.includes('admin') || role === 'super_admin' || email.includes('invqi') || email === 'inv@ck.com') return true;
+    return allowedRoles.some(r => role.includes(r.toLowerCase()));
+  };
+
+  const initials = getInitials(user.name, user.username);
+  const userRole = (user.role || '').toLowerCase();
+  const userEmail = (user.email || '').toLowerCase();
+  const isInventoryQI = userRole.includes('inventory_qi') || userEmail.includes('invqi');
+  const initialRoute = (userRole.includes('inventory') || userRole.includes('storekeeper') || isInventoryQI) ? 'Inventory' : 'Dashboard';
+
+  return (
+    <Drawer.Navigator
+      key={`${user.id}-${user.role}`}
+      initialRouteName={initialRoute}
+      drawerContent={(props) => (
+        <CustomDrawerContent {...props} user={user} onLogout={handleLogout} />
+      )}
+      screenOptions={{
+        headerStyle: { backgroundColor: '#ffffff', shadowColor: 'transparent', elevation: 0, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' } as any,
+        headerTintColor: '#1d4ed8',
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: '#0f172a' },
+        drawerActiveBackgroundColor: 'transparent',
+        drawerActiveTintColor: '#1d4ed8',
+        drawerInactiveTintColor: '#475569',
+        drawerStyle: { backgroundColor: '#f8fafc', width: Platform.OS === 'web' ? 280 : 300, borderRightWidth: 1, borderRightColor: '#e2e8f0' },
+        drawerType: Platform.OS === 'web' ? 'permanent' : 'slide',
+        overlayColor: 'rgba(15,23,42,0.3)',
+        headerRight: () => (
+          <View style={drawerStyles.headerRight}>
+            <View style={drawerStyles.headerAvatar}>
+              <Text style={drawerStyles.headerAvatarText}>{initials}</Text>
+            </View>
+            <View style={drawerStyles.headerUserInfo}>
+              <Text style={drawerStyles.headerUserName}>{user.name || user.username}</Text>
+              <Text style={drawerStyles.headerUserRole}>{ROLE_LABELS[user.role] || user.role}</Text>
+            </View>
+          </View>
+        ),
+      }}
+    >
+      {user.role === 'super_admin' ? (
+        <Drawer.Screen name="Clients" component={ClientsScreen} options={{ drawerLabel: 'Deployed Clients' }} />
+      ) : (
+        <>
+          {!isInventoryQI && (
+            <>
+              <Drawer.Screen name="Dashboard" component={DashboardScreen} options={{ drawerLabel: 'Dashboard' }} />
+              {canAccess(['ptc', 'ptc_manager', 'admin']) && <Drawer.Screen name="Work Orders" component={WorkOrderScreen} options={{ drawerLabel: 'Work Orders' }} />}
+              {canAccess(['ptc', 'ptc_manager', 'qi', 'qi_user', 'ptc_diecasting', 'qi_diecasting', 'ptc_coating', 'qi_coating', 'ptc_machining', 'qi_machining', 'admin']) && <Drawer.Screen name="Pipeline" component={ProductionProcessScreen} options={{ drawerLabel: 'Pipeline' }} />}
+              {canAccess(['qi', 'qi_user', 'qi_diecasting', 'qi_coating', 'qi_machining', 'fqi', 'final_qi_user', 'admin']) && <Drawer.Screen name="Quality" component={QualityScreen} options={{ drawerLabel: 'Quality' }} />}
+              {canAccess(['admin', 'tenant_admin']) && <Drawer.Screen name="Reports" component={ReportsScreen} options={{ drawerLabel: 'Reports' }} />}
+              {canAccess(['admin', 'tenant_admin']) && <Drawer.Screen name="Configuration" component={ConfigurationScreen} options={{ drawerLabel: 'Configuration' }} />}
+            </>
+          )}
+          {canAccess(['storekeeper', 'inventory_user', 'inventory_qi', 'admin']) && (
+            <Drawer.Screen name="Inventory">
+              {(props) => <InventoryScreen {...props} user={user} />}
+            </Drawer.Screen>
+          )}
+        </>
+      )}
+    </Drawer.Navigator>
+  );
+}
+
+const drawerStyles = StyleSheet.create({
+  profileCard: { backgroundColor: '#1e3a5f', margin: 12, borderRadius: 16, padding: 16, gap: 12 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center' },
+  logoText: { color: '#ffffff', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  companyName: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  companyTagline: { color: '#93c5fd', fontSize: 11 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  userName: { color: '#ffffff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  roleBadge: { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  roleText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  navContainer: { paddingHorizontal: 10, paddingTop: 8, gap: 4 },
+  section: { marginBottom: 16, gap: 2 },
+  sectionLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8', letterSpacing: 1.5, paddingHorizontal: 12, paddingVertical: 6 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 12, gap: 10, position: 'relative' },
+  menuItemActive: { backgroundColor: '#dbeafe' },
+  menuIconBox: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  menuIconBoxActive: { backgroundColor: '#bfdbfe' },
+  menuIconBoxInactive: { backgroundColor: '#f1f5f9' },
+  menuIcon: { fontSize: 16 },
+  menuLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: '#475569' },
+  menuLabelActive: { color: '#1d4ed8', fontWeight: '800' },
+  activeIndicator: { width: 4, height: 20, borderRadius: 2, backgroundColor: '#1d4ed8' },
+  logoutSection: { marginTop: 'auto', padding: 16, gap: 10 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fee2e2', borderRadius: 12, padding: 12 },
+  logoutIcon: { fontSize: 16 },
+  logoutText: { fontSize: 14, fontWeight: '700', color: '#dc2626' },
+  versionText: { fontSize: 11, color: '#cbd5e1', textAlign: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', marginRight: 16, gap: 10 },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#1d4ed8', alignItems: 'center', justifyContent: 'center' },
+  headerAvatarText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
+  headerUserInfo: { alignItems: 'flex-end' },
+  headerUserName: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
+  headerUserRole: { fontSize: 11, color: '#64748b' },
+});

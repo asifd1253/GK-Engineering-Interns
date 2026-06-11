@@ -1,0 +1,13 @@
+node_modules
+dist
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+coverage
+uploads
+tmp_docx
+enhancement_extracted
+*.zip
+tsc-output.txt
